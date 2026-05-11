@@ -1,0 +1,66 @@
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE and local tooling
+.idea/
+.jbeval/
+.vscode/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Local config and secrets
+.env
+.env.*
+*.local
+
+# Large model files and ML artifacts
+rag_qa/models/
+rag_qa/core/bert_results/
+rag_qa/nlp_bert_document-segmentation_chinese-base/
+models/*
+!models/.gitkeep
+!models/README.md
+checkpoints/
+outputs/
+runs/
+wandb/
+mlruns/
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors
+*.onnx
+*.tflite
+*.h5
+*.pkl
+*.joblib
+
+# Data and generated files
+data/
+datasets/
+.index_manifest/
+*.sqlite
+*.sqlite3
+*.db
+*.tmp
+*.temp
