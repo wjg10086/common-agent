@@ -24,7 +24,7 @@ class LazyFilesystemBackend(BackendProtocol):
         """
         self.runtime = runtime  # 保存运行时上下文
         self._backend: Optional[FilesystemBackend] = None  # 真实后端实例(初始为None)
-        self._thread_id = rt.get_thread_id(runtime)  # 从运行时获取线程ID
+        self._thread_id = rt.get_thread_id(runtime)  # 从运行时获取线程ID（可隔离用户会话和文件操作）
         self._root_dir = os.path.join(ROOT_PATH_AGENT, self._thread_id)  # 构建根目录路径
 
     def _ensure_backend(self) -> FilesystemBackend:
