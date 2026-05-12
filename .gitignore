@@ -17,10 +17,15 @@ venv/
 env/
 ENV/
 
-# IDE and local tooling
-.idea/
+# IDE and local tooling (这里是重点！)
+.idea/                # 完整忽略整个.idea目录，包括里面的xml文件
 .jbeval/
 .vscode/
+
+# LangGraph runtime files (这里是重点！)
+.langgraph_api/       # 必须加/，忽略整个目录
+*.pckl                # 忽略所有.pckl文件
+*.pkl                 # 忽略所有.pkl文件
 
 # Logs
 logs/
@@ -52,7 +57,6 @@ mlruns/
 *.onnx
 *.tflite
 *.h5
-*.pkl
 *.joblib
 
 # Data and generated files

@@ -1,5 +1,7 @@
 from langchain.messages import AIMessageChunk
-from utils.general_utils.loggers import logger
+
+from utils.loggers import logger
+
 
 # 流式打印日志
 def stream_log(agent, input):
