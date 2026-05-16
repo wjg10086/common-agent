@@ -7,6 +7,8 @@ from content.utils import runtime_util as rt
 from langchain.messages import ToolMessage, AIMessage
 from utils.doc_utils.zip_files import compress_dir
 from conn.minio_conn import MinioConn
+from base.configs import USER_UPLOAD_PATH
+from content.utils import base64_util as bu
 import os
 
 class CustomState(AgentState):
@@ -15,6 +17,7 @@ class CustomState(AgentState):
     """
     start_work_time: float  # Agent工作开始的时间戳
     file_update_time: float  # 文件最后更新时间戳，用于检测文件变化
+    upload_files: list  # 用户上传的文件列表
 
 
 class FileMiddleware(AgentMiddleware[CustomState]):
@@ -66,14 +69,56 @@ class FileMiddleware(AgentMiddleware[CustomState]):
     async def abefore_agent(self, state, runtime):
         """
         Agent执行前的钩子函数
+
+        功能: 处理用户上传的文件，保存到本地工作目录
+        主要任务:
+        1. 创建用户上传目录
+        2. 将base64编码的文件保存为本地文件
+        3. 初始化Agent工作状态
         """
         # 获取当前时间戳，用于状态管理
         file_update_time = time.time()
-        # 没有上传文件时，只更新时间状态
-        return {
-            "start_work_time": file_update_time,
-            "file_update_time": file_update_time
-        }
+
+        # 转换用户上传路径为当前线程的绝对路径
+        dir_path = os.path.join(rt.get_root_thread_dir(), USER_UPLOAD_PATH)
+
+        # 异步创建目录（如果不存在）
+        await asyncio.to_thread(os.makedirs, dir_path, exist_ok=True)
+
+        # 获取用户上传的文件列表
+        files = state.get('upload_files')
+
+        if files:  # 如果有上传的文件
+            content = f'用户上传了如下文件,已下载,文件路径如下:'
+
+            # 遍历所有上传的文件
+            for file in files:
+                # 异步保存base64编码的文件到本地
+                r = await asyncio.to_thread(
+                    bu.save_base64_file_from_content_block,
+                    file,
+                    dir_path
+                )
+                # 将绝对路径转换为相对路径，便于显示
+                content += f"\n{rt.get_out_path(r['file_path'])}"
+
+            # 返回处理结果并更新状态
+            return {
+                "messages": [ToolMessage(
+                    content=content,
+                    tool_call_id=get_uuid(),
+                    name="file_upload"  # 文件上传工具
+                )],
+                "upload_files": None,  # 清空上传文件列表
+                "start_work_time": time.time(),  # 记录工作开始时间
+                "file_update_time": file_update_time  # 更新文件时间
+            }
+        else:
+            # 没有上传文件时，只更新时间状态
+            return {
+                "start_work_time": file_update_time,
+                "file_update_time": file_update_time
+            }
 
     async def awrap_tool_call(self, request, handler):
         # 执行实际工具调用

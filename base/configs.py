@@ -22,3 +22,5 @@ MINIO_PORT = os.getenv("MINIO_PORT")
 MINIO_ENDPOINT = f"{HOST_IP}:{MINIO_PORT}"
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+
+USER_UPLOAD_PATH = 'user_uploads'    # 用户上传文件保存目录
