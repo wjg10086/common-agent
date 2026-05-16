@@ -24,3 +24,5 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 
 USER_UPLOAD_PATH = 'user_uploads'    # 用户上传文件保存目录
+
+ROOT_SYSTEM = 'fD:/' if get_platform()==0 else '/'  # 系统根目录

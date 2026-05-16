@@ -109,5 +109,52 @@ def get_platform():
         #print("这是 macOS 系统")
         return 2
 
+
+def change_file_path(file_path):
+    """
+    转换文件路径为当前线程对应的文件路径
+
+    主要功能：
+    1. 如果路径已经包含线程根目录，直接返回
+    2. 将绝对路径转换为相对于线程根目录的路径
+    3. 处理系统根目录的特殊情况
+
+    Args:
+        file_path (str): 原始文件路径
+
+    Returns:
+        str: 转换后的文件路径
+    """
+
+    # 规范化文件路径，处理多余的分隔符、'.'和'..'等
+    # 例如：/home//user/./docs/../file.txt -> /home/user/file.txt
+    file_path = os.path.normpath(file_path)
+
+    # 获取当前线程的根目录路径
+    root_thread_dir = get_root_thread_dir()
+
+    # 检查原始路径是否已经包含线程根目录
+    # 如果已经包含，说明路径已经是正确格式，直接返回
+    if root_thread_dir in file_path:
+        return file_path
+
+    # 检查是否为绝对路径（以根目录开始的路径）
+    if os.path.isabs(file_path):
+        # 如果路径中包含系统根目录标识（gc.ROOT_SYSTEM）
+        if gc.ROOT_SYSTEM in file_path:
+            # 则计算相对于系统根目录的相对路径
+            file_path = os.path.relpath(file_path, gc.ROOT_SYSTEM)
+        else:
+            # 如果不包含系统根目录标识，则计算相对于系统根目录"/"的相对路径
+            file_path = os.path.relpath(file_path, "/")
+
+    # 将相对路径与线程根目录拼接，得到完整的线程相关路径
+    p = os.path.join(root_thread_dir, file_path)
+
+    # 返回转换后的完整路径
+    return p
+
+
+
 if __name__ == '__main__':
     print(get_platform())

@@ -1,30 +1,48 @@
+import os
 import asyncio
 import time
+from content.utils import runtime_util as rt
+from base.configs import USER_UPLOAD_PATH
 from langchain.agents.middleware import AgentState, AgentMiddleware
+from content.utils import base64_util as bu
 from utils.doc_utils import os_util as ou
 from utils.general_utils.globle_util import get_uuid
-from content.utils import runtime_util as rt
 from langchain.messages import ToolMessage, AIMessage
 from utils.doc_utils.zip_files import compress_dir
 from conn.minio_conn import MinioConn
-from base.configs import USER_UPLOAD_PATH
-from content.utils import base64_util as bu
-import os
+
 
 class CustomState(AgentState):
     """
     自定义Agent状态类，扩展LangChain的AgentState
     """
+    upload_files: list     # 用户上传的文件列表
     start_work_time: float  # Agent工作开始的时间戳
     file_update_time: float  # 文件最后更新时间戳，用于检测文件变化
-    upload_files: list  # 用户上传的文件列表
+
 
 
 class FileMiddleware(AgentMiddleware[CustomState]):
+    """
+    文件处理中间件
+
+    功能概述:
+    1. 管理用户文件上传
+    2. 监控工作目录文件变化
+    3. 文件路径转换（相对路径<->绝对路径）
+    4. 工作成果打包上传到MinIO对象存储
+
+    生命周期钩子:
+    - abefore_model: 在模型调用前执行
+    - abefore_agent: 在Agent执行前执行
+    - aafter_agent: 在Agent执行后执行
+    - awrap_tool_call: 包装工具调用，处理文件路径
+    """
 
     state_schema = CustomState  # 指定使用的状态类
 
     def __init__(self):
+        """初始化中间件，创建MinIO连接"""
         super().__init__()
         self.mc = MinioConn()  # MinIO对象存储连接实例
 
@@ -51,6 +69,7 @@ class FileMiddleware(AgentMiddleware[CustomState]):
         触发条件: 文件更新时间晚于状态中记录的时间
         """
         DIR_PATH = rt.get_root_thread_dir()  # 获取当前线程的工作目录
+
         # 检查是否有新文件加入工作目录
         if await self._check_if_new_file(DIR_PATH, state['file_update_time']):
             # 生成美观的目录树结构描述
@@ -80,7 +99,7 @@ class FileMiddleware(AgentMiddleware[CustomState]):
         file_update_time = time.time()
 
         # 转换用户上传路径为当前线程的绝对路径
-        dir_path = os.path.join(rt.get_root_thread_dir(), USER_UPLOAD_PATH)
+        dir_path = rt.change_file_path(USER_UPLOAD_PATH)
 
         # 异步创建目录（如果不存在）
         await asyncio.to_thread(os.makedirs, dir_path, exist_ok=True)
@@ -120,17 +139,6 @@ class FileMiddleware(AgentMiddleware[CustomState]):
                 "file_update_time": file_update_time
             }
 
-    async def awrap_tool_call(self, request, handler):
-        # 执行实际工具调用
-        tool_result = await handler(request)
-
-        # 在工具调用后：将绝对路径转换回相对路径
-        if isinstance(tool_result, ToolMessage):
-            # 只转换内容中的路径，其他信息保持不变
-            tool_result.content = rt.get_out_path(tool_result.content)
-
-        return tool_result
-
     async def aafter_agent(self, state, runtime):
         """
         Agent执行后的钩子函数
@@ -167,3 +175,41 @@ class FileMiddleware(AgentMiddleware[CustomState]):
         else:
             # 没有新文件，不执行任何操作
             return None
+
+    async def awrap_tool_call(self, request, handler):
+        """
+        包装工具调用的中间件方法
+
+        功能: 在工具执行前后进行文件路径转换
+        转换方向:
+        - 调用前: 相对路径 → 绝对路径（供工具使用）
+        - 调用后: 绝对路径 → 相对路径（供显示/存储）
+
+        参数:
+        request: 工具调用请求对象
+        handler: 下一个处理函数
+
+        返回:
+        ToolMessage: 处理后的工具结果
+        """
+        # 定义需要处理路径的字段名
+        filepath_fields = ['filepath', 'filename', 'image_path', 'reference_image_path']
+
+        # 在工具调用前：将相对路径转换为绝对路径
+        for field in filepath_fields:
+            if field in request.tool_call['args']:
+                if request.tool_call['args'][field]:
+                    # 使用change_file_path将相对路径转为当前线程的绝对路径
+                    request.tool_call['args'][field] = rt.change_file_path(
+                        request.tool_call['args'][field]
+                    )
+
+        # 执行实际工具调用
+        tool_result = await handler(request)
+
+        # 在工具调用后：将绝对路径转换回相对路径
+        if isinstance(tool_result, ToolMessage):
+            # 只转换内容中的路径，其他信息保持不变
+            tool_result.content = rt.get_out_path(tool_result.content)
+
+        return tool_result
