@@ -16,3 +16,9 @@ NEED_CONSOLE_LOG = True # 日志是否打印到控制台
 
 # gent工作的根目录样式如果是Windows系统则加上 C 盘的前置，否则保持原样
 ROOT_PATH_SYSTEM = f'C:/{ROOT_PATH_AGENT}' if get_platform()==0 else ROOT_PATH_AGENT  # 系统工作根目录
+
+HOST_IP = os.getenv("HOST_IP")
+MINIO_PORT = os.getenv("MINIO_PORT")
+MINIO_ENDPOINT = f"{HOST_IP}:{MINIO_PORT}"
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")

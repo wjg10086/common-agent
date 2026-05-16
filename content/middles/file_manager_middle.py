@@ -3,8 +3,11 @@ import time
 from langchain.agents.middleware import AgentState, AgentMiddleware
 from utils.doc_utils import os_util as ou
 from utils.general_utils.globle_util import get_uuid
-from langchain.messages import ToolMessage
 from content.utils import runtime_util as rt
+from langchain.messages import ToolMessage, AIMessage
+from utils.doc_utils.zip_files import compress_dir
+from conn.minio_conn import MinioConn
+import os
 
 class CustomState(AgentState):
     """
@@ -20,6 +23,7 @@ class FileMiddleware(AgentMiddleware[CustomState]):
 
     def __init__(self):
         super().__init__()
+        self.mc = MinioConn()  # MinIO对象存储连接实例
 
     async def _check_if_new_file(self, folder_path, work_start_time):
         """
@@ -54,7 +58,7 @@ class FileMiddleware(AgentMiddleware[CustomState]):
                 "messages": [ToolMessage(
                     content=content,
                     tool_call_id=get_uuid(),  # 生成唯一工具调用ID
-                    name="summery_file_paths"  # 工具名称
+                    name="summary_file_paths"  # 工具名称
                 )],
                 "file_update_time": time.time()  # 更新文件检测时间
             }
@@ -81,3 +85,40 @@ class FileMiddleware(AgentMiddleware[CustomState]):
             tool_result.content = rt.get_out_path(tool_result.content)
 
         return tool_result
+
+    async def aafter_agent(self, state, runtime):
+        """
+        Agent执行后的钩子函数
+
+        功能: 检查工作期间是否有新文件产生，如果有则打包上传
+        主要任务:
+        1. 检查文件变化
+        2. 压缩工作目录
+        3. 上传到MinIO对象存储
+        4. 生成下载链接
+        """
+        DIR_PATH = rt.get_root_thread_dir()  # 获取工作目录
+
+        # 检查工作期间是否有新文件产生
+        if await self._check_if_new_file(DIR_PATH, state['start_work_time']):
+            # 1. 异步压缩工作目录
+            local_p = await asyncio.to_thread(compress_dir, DIR_PATH)
+
+            # 2. 上传到MinIO对象存储
+            obj_path = os.path.basename(local_p)  # 获取压缩文件名
+            # 异步上传
+            await asyncio.to_thread(self.mc.upload_obj, obj_path, local_p)
+
+            # 3. 生成预签名下载URL（带有效期）
+            url = self.mc.gen_presigned_url(obj_path)
+
+            # 返回下载链接给用户
+            return {
+                "messages": [
+                    AIMessage(content='可通过如下地址下载:'),
+                    AIMessage(content=url)
+                ]
+            }
+        else:
+            # 没有新文件，不执行任何操作
+            return None
