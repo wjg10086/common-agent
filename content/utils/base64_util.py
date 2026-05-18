@@ -48,3 +48,15 @@ def save_base64_file(
         "file_path": str(file_path),
         "filename": filename,
     }
+
+import base64
+import mimetypes
+
+def image_to_data_url(file_path):
+    """生成完整的data URL（包含MIME类型）"""
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if mime_type is None:
+        mime_type = 'image/jpeg'  # 默认类型
+    with open(file_path, 'rb') as image_file:
+        base64_data = base64.b64encode(image_file.read()).decode('utf-8')
+    return f"data:{mime_type};base64,{base64_data}"

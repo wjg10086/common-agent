@@ -26,3 +26,12 @@ MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
 USER_UPLOAD_PATH = 'user_uploads'    # 用户上传文件保存目录
 
 ROOT_SYSTEM = 'fD:/' if get_platform()==0 else '/'  # 系统根目录
+
+WAIT_RATE_LIMIT_SEC = 90 # 等待wait_rate_limit的间隔
+WAIT_RATE_LIMIT_RETRY = 3 # 重试次数
+
+BASE_VLM = os.getenv("BASE_VLM")  # VLM 模型
+IMAGE_MODEL = os.getenv("IMAGE_MODEL") # 基础生图模型
+EDIT_IMAGE_MODEL = os.getenv("EDIT_IMAGE_MODEL") # 修改图像模型
+SILICON_API_KEY = os.getenv("OPENAI_API_KEY") # 引入一下硅基流动的API_KEY因为调用生图模型无法利用langchain本身框架。
+GENERATE_IMAGE_PATH = 'generate_images'  # 生成图片保存目录
